@@ -1,0 +1,80 @@
+export const CourseData = [
+  {
+    id: 1,
+    title: "Advanced React Development",
+    instructor: "Sarah Johnson",
+    price: 89.99,
+    originalPrice: 129.99,
+    rating: 4.8,
+    students: 12543,
+    duration: "24 hours",
+    image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=250&fit=crop",
+    description: "Master React with hooks, context, and advanced patterns. Build production-ready applications with modern React techniques.",
+    modules: ["React Hooks", "Context API", "Performance Optimization", "Testing", "State Management"]
+  },
+  {
+    id: 2,
+    title: "UI/UX Design Masterclass",
+    instructor: "David Chen",
+    price: 79.99,
+    originalPrice: 119.99,
+    rating: 4.9,
+    students: 8921,
+    duration: "18 hours",
+    image: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&h=250&fit=crop",
+    description: "Learn design thinking, user research, and create stunning interfaces that users love.",
+    modules: ["Design Thinking", "User Research", "Prototyping", "Visual Design", "Usability Testing"]
+  },
+  {
+    id: 3,
+    title: "Python for Data Science",
+    instructor: "Dr. Maria Rodriguez",
+    price: 94.99,
+    originalPrice: 149.99,
+    rating: 4.7,
+    students: 15678,
+    duration: "32 hours",
+    image: "https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=400&h=250&fit=crop",
+    description: "Comprehensive Python course covering data analysis, visualization, and machine learning fundamentals.",
+    modules: ["Python Basics", "Pandas & NumPy", "Data Visualization", "Machine Learning", "Real Projects"]
+  },
+  {
+    id: 4,
+    title: "Digital Marketing Strategy",
+    instructor: "Alex Thompson",
+    price: 69.99,
+    originalPrice: 99.99,
+    rating: 4.6,
+    students: 9834,
+    duration: "20 hours",
+    image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=250&fit=crop",
+    description: "Build comprehensive digital marketing strategies that drive growth and engagement.",
+    modules: ["SEO & SEM", "Social Media", "Content Marketing", "Analytics", "Campaign Management"]
+  },
+  {
+    id: 5,
+    title: "Mobile App Development",
+    instructor: "James Wilson",
+    price: 99.99,
+    originalPrice: 149.99,
+    rating: 4.8,
+    students: 7654,
+    duration: "28 hours",
+    image: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=400&h=250&fit=crop",
+    description: "Create native mobile apps for iOS and Android using React Native and modern development practices.",
+    modules: ["React Native", "Navigation", "API Integration", "State Management", "App Store Deployment"]
+  },
+  {
+    id: 6,
+    title: "Cybersecurity Fundamentals",
+    instructor: "Dr. Emily Carter",
+    price: 84.99,
+    originalPrice: 124.99,
+    rating: 4.7,
+    students: 6543,
+    duration: "25 hours",
+    image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400&h=250&fit=crop",
+    description: "Learn essential cybersecurity concepts, threat detection, and protection strategies.",
+    modules: ["Network Security", "Ethical Hacking", "Risk Assessment", "Incident Response", "Compliance"]
+  }
+];
