@@ -1,0 +1,400 @@
+const Course = require('../models/Course');
+const User = require('../models/User');
+
+// Get all courses
+exports.getAllCourses = async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      category, 
+      level, 
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
+
+    const query = { isActive: true };
+
+    // Filter by category
+    if (category) {
+      query.category = category;
+    }
+
+    // Filter by level
+    if (level) {
+      query.level = level;
+    }
+
+    // Search functionality
+    if (search) {
+      query.$text = { $search: search };
+    }
+
+    // Sort options
+    const sortOptions = {};
+    sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+    const courses = await Course.find(query)
+      .populate('instructor', 'name email profileImage')
+      .sort(sortOptions)
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .exec();
+
+    const total = await Course.countDocuments(query);
+
+    res.status(200).json({
+      courses,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching courses', error: error.message });
+  }
+};
+
+// Get course by ID
+exports.getCourseById = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id)
+      .populate('instructor', 'name email profileImage domain experience');
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    if (!course.isActive) {
+      return res.status(404).json({ message: 'Course is not available' });
+    }
+
+    res.status(200).json(course);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching course', error: error.message });
+  }
+};
+
+// Helper to map uploaded videos and descriptions to modules
+function attachVideosToModules(modules, files, body) {
+  // files: [{ fieldname: 'videos', ... }, ...] - from uploadVideos.array('videos')
+  // body: contains videoDescriptions as JSON strings with moduleIndex and videoIndex
+  const moduleVideos = {};
+  
+  if (files && Array.isArray(files)) {
+    // Parse video descriptions to get module and video indices
+    const videoDescriptions = [];
+    if (body.videoDescriptions) {
+      // Handle both single string and array of strings
+      const descriptions = Array.isArray(body.videoDescriptions) ? body.videoDescriptions : [body.videoDescriptions];
+      descriptions.forEach(desc => {
+        try {
+          const videoInfo = JSON.parse(desc);
+          videoDescriptions.push(videoInfo);
+        } catch (e) {
+          console.error('Error parsing video description:', e);
+        }
+      });
+    }
+    
+    // Map files to modules based on videoDescriptions
+    files.forEach((file, fileIndex) => {
+      const videoInfo = videoDescriptions[fileIndex];
+      if (videoInfo && videoInfo.moduleIndex !== undefined) {
+        const moduleIdx = videoInfo.moduleIndex;
+        if (!moduleVideos[moduleIdx]) moduleVideos[moduleIdx] = [];
+        
+        moduleVideos[moduleIdx].push({
+          url: file.path.replace(/\\/g, '/'),
+          description: videoInfo.description || ''
+        });
+      }
+    });
+  }
+  
+  return modules.map((mod, idx) => {
+    return {
+      ...mod,
+      videos: moduleVideos[idx] || []
+    };
+  });
+}
+
+// Create new course (instructor only)
+exports.createCourse = async (req, res) => {
+  try {
+    console.log('=== CREATE COURSE DEBUG ===');
+    console.log('Request body keys:', Object.keys(req.body));
+    console.log('Request files:', req.files);
+    console.log('Request file:', req.file);
+    console.log('User:', req.user);
+    console.log('========================');
+
+    const { name, description, price, duration, category, level } = req.body;
+    
+    // Validate required fields
+    if (!name || !description || !price || !duration || !category || !level) {
+      return res.status(400).json({ 
+        message: 'Missing required fields', 
+        missing: {
+          name: !name,
+          description: !description,
+          price: !price,
+          duration: !duration,
+          category: !category,
+          level: !level
+        }
+      });
+    }
+
+    let modules = req.body.modules;
+    if (typeof modules === 'string') {
+      try {
+        modules = JSON.parse(modules);
+      } catch (parseError) {
+        console.error('Error parsing modules JSON:', parseError);
+        return res.status(400).json({ message: 'Invalid modules JSON format' });
+      }
+    }
+
+    // Check if user is an instructor
+    if (req.user.role !== 'instructor') {
+      return res.status(403).json({ message: 'Only instructors can create courses' });
+    }
+
+    // Handle modules with videos if files are uploaded
+    let modulesWithVideos;
+    if (req.files && req.files.length > 0) {
+      // Use the attachVideosToModules function for file uploads
+      modulesWithVideos = attachVideosToModules(modules, req.files, req.body);
+    } else {
+      // No files uploaded, create modules without videos
+      modulesWithVideos = modules.map((mod, idx) => ({
+        ...mod,
+        videos: [] // Empty videos array
+      }));
+    }
+
+    // Handle thumbnail image upload
+    let thumbnailPath = 'default-course.jpg';
+    if (req.file) {
+      thumbnailPath = req.file.path.replace(/\\/g, '/');
+    }
+
+    console.log('Creating course with data:', {
+      name,
+      description,
+      instructor: req.user.id,
+      instructorName: req.user.name,
+      price,
+      duration,
+      modules: modulesWithVideos,
+      category,
+      level,
+      thumbnail: thumbnailPath
+    });
+
+    const course = await Course.create({
+      name,
+      description,
+      instructor: req.user.id,
+      instructorName: req.user.name,
+      price,
+      duration,
+      modules: modulesWithVideos,
+      category,
+      level,
+      thumbnail: thumbnailPath
+    });
+
+    console.log('Course created successfully:', course._id);
+    res.status(201).json(course);
+  } catch (error) {
+    console.error('Error creating course:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Error creating course', 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
+
+// Update course (instructor only)
+exports.updateCourse = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+    if (course.instructor.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only update your own courses' });
+    }
+    let modules = req.body.modules;
+    if (typeof modules === 'string') modules = JSON.parse(modules);
+    const modulesWithVideos = attachVideosToModules(modules, req.files || [], req.body);
+    // Handle thumbnail image upload
+    let thumbnailPath = course.thumbnail;
+    if (req.file) {
+      thumbnailPath = req.file.path.replace(/\\/g, '/');
+    }
+    const updatedCourse = await Course.findByIdAndUpdate(
+      req.params.id,
+      {
+        ...req.body,
+        modules: modulesWithVideos,
+        thumbnail: thumbnailPath
+      },
+      { new: true, runValidators: true }
+    );
+    res.status(200).json(updatedCourse);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating course', error: error.message });
+  }
+};
+
+// Delete course (instructor only)
+exports.deleteCourse = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check if user is the course instructor
+    if (course.instructor.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only delete your own courses' });
+    }
+
+    await Course.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({ message: 'Course deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting course', error: error.message });
+  }
+};
+
+// Get courses by instructor
+exports.getCoursesByInstructor = async (req, res) => {
+  try {
+    const courses = await Course.find({ 
+      instructor: req.params.instructorId,
+      isActive: true 
+    }).populate('instructor', 'name email profileImage');
+
+    res.status(200).json(courses);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching instructor courses', error: error.message });
+  }
+};
+
+// Get course categories
+exports.getCourseCategories = async (req, res) => {
+  try {
+    const categories = await Course.distinct('category', { isActive: true });
+    res.status(200).json(categories);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching categories', error: error.message });
+  }
+};
+
+// Enroll user in a course (purchase)
+exports.enrollInCourse = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { courseId } = req.body;
+
+    if (!courseId) {
+      return res.status(400).json({ message: 'Course ID is required' });
+    }
+
+    // Check if course exists
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Get user and check if already enrolled
+    const user = await User.findById(userId);
+    const alreadyEnrolled = user.enrolledCourses.some(
+      enrollment => enrollment.courseId.toString() === courseId
+    );
+
+    if (alreadyEnrolled) {
+      return res.status(400).json({ message: 'Already enrolled in this course' });
+    }
+
+    // Add course to user's enrolled courses
+    user.enrolledCourses.push({
+      courseId: courseId,
+      enrolledDate: new Date(),
+      progress: 0,
+      timeSpent: 0,
+      lastAccess: new Date(),
+      completed: false
+    });
+
+    // Update course enrollment count
+    course.studentsEnrolled = (course.studentsEnrolled || 0) + 1;
+
+    // Save both user and course
+    await Promise.all([user.save(), course.save()]);
+
+    res.json({ 
+      message: 'Successfully enrolled in course',
+      course: {
+        _id: course._id,
+        name: course.name,
+        instructorName: course.instructorName,
+        thumbnail: course.thumbnail,
+        duration: course.duration
+      }
+    });
+
+  } catch (err) {
+    console.error('Error enrolling in course:', err);
+    res.status(500).json({ message: 'Error enrolling in course', error: err.message });
+  }
+};
+
+// Check if user is enrolled in a course
+exports.checkEnrollment = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { courseId } = req.params;
+
+    const user = await User.findById(userId);
+    const isEnrolled = user.enrolledCourses.some(
+      enrollment => enrollment.courseId.toString() === courseId
+    );
+
+    res.json({ isEnrolled });
+  } catch (err) {
+    console.error('Error checking enrollment:', err);
+    res.status(500).json({ message: 'Error checking enrollment', error: err.message });
+  }
+};
+
+// Update time spent on a course for a user
+exports.updateTimeSpent = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { courseId, timeSpent } = req.body;
+    if (!courseId || typeof timeSpent !== 'number') {
+      return res.status(400).json({ message: 'Course ID and timeSpent are required.' });
+    }
+    const user = await User.findById(userId);
+    const enrollment = user.enrolledCourses.find(e => e.courseId.toString() === courseId);
+    if (!enrollment) {
+      return res.status(404).json({ message: 'Not enrolled in this course.' });
+    }
+    enrollment.timeSpent = (enrollment.timeSpent || 0) + timeSpent;
+    enrollment.lastAccess = new Date();
+    await user.save();
+    res.json({ message: 'Time spent updated.' });
+  } catch (err) {
+    console.error('Error updating time spent:', err);
+    res.status(500).json({ message: 'Error updating time spent', error: err.message });
+  }
+}; 
