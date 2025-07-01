@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Star, Users, Clock, ShoppingCart, Check } from 'lucide-react';
+import { Star, Users, Clock, ShoppingCart, Check, Play } from 'lucide-react';
 import CourseCard from './CourseCard';
 
 const CourseDetailPage = ({ 
@@ -9,6 +8,7 @@ const CourseDetailPage = ({
   isPurchased, 
   isLoggedIn, 
   onBuyCourse, 
+  onStartCourse,
   onBackToCourses, 
   onCourseSelect 
 }) => {
@@ -30,6 +30,10 @@ const CourseDetailPage = ({
     onBuyCourse(course.id);
   };
 
+  const handleStartCourse = () => {
+    onStartCourse(course.id);
+  };
+
   const handleCourseClick = (selectedCourse) => {
     onCourseSelect(selectedCourse);
     window.scrollTo(0, 0);
@@ -47,11 +51,13 @@ const CourseDetailPage = ({
         
         <div className="grid lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2">
-            <img 
-              src={course.image} 
-              alt={course.title}
-              className="w-full h-64 object-cover rounded-2xl mb-8"
-            />
+            {(course.image || '/default-course.png') && (
+              <img 
+                src={course.image || '/default-course.png'} 
+                alt={course.title}
+                className="w-full h-64 object-cover rounded-2xl mb-8"
+              />
+            )}
             
             <h1 className="text-4xl font-bold text-gray-900 mb-4">{course.title}</h1>
             <p className="text-xl text-gray-600 mb-6">{course.description}</p>
@@ -75,11 +81,11 @@ const CourseDetailPage = ({
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Course Modules</h2>
               <div className="space-y-4">
                 {course.modules.map((module, index) => (
-                  <div key={index} className="flex items-center p-4 bg-gray-50 rounded-xl">
+                  <div key={module._id || module.title || index} className="flex items-center p-4 bg-gray-50 rounded-xl">
                     <div className="bg-indigo-100 text-indigo-600 rounded-full w-8 h-8 flex items-center justify-center font-semibold text-sm mr-4">
                       {index + 1}
                     </div>
-                    <span className="font-medium text-gray-900">{module}</span>
+                    <span className="font-medium text-gray-900">{module.title || module}</span>
                   </div>
                 ))}
               </div>
@@ -100,9 +106,18 @@ const CourseDetailPage = ({
               </div>
               
               {isPurchased ? (
-                <div className="bg-green-100 text-green-800 p-4 rounded-xl text-center font-semibold mb-4">
-                  <Check className="h-5 w-5 inline mr-2" />
-                  Course Purchased!
+                <div className="space-y-4">
+                  <div className="bg-green-100 text-green-800 p-4 rounded-xl text-center font-semibold">
+                    <Check className="h-5 w-5 inline mr-2" />
+                    Course Purchased!
+                  </div>
+                  <button 
+                    onClick={handleStartCourse}
+                    className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
+                  >
+                    <Play className="h-5 w-5" />
+                    <span>Start Course</span>
+                  </button>
                 </div>
               ) : (
                 <button 
@@ -124,9 +139,9 @@ const CourseDetailPage = ({
         <div className="mt-16">
           <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">You Might Also Like</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {relatedCourses.map((relatedCourse) => (
+            {relatedCourses.map((relatedCourse, idx) => (
               <CourseCard 
-                key={relatedCourse.id} 
+                key={relatedCourse._id || relatedCourse.id || idx} 
                 course={relatedCourse} 
                 onClick={handleCourseClick}
               />
