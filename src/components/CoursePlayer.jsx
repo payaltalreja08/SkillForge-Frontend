@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, Play, Pause, Volume2, Maximize, MessageCircle, BookOpen, Star, Download, Bot } from 'lucide-react';
+import { ChevronLeft, Play, Pause, Volume2, VolumeX, Maximize, MoreVertical, MessageCircle, BookOpen, Star, Download, Bot } from 'lucide-react';
 
 const API_BASE_URL = 'http://localhost:5000';
 
@@ -10,7 +10,7 @@ const CoursePlayer = ({ courseId, onBack }) => {
   const [progress, setProgress] = useState({});
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState(true);
   const [showAI, setShowAI] = useState(false);
   const [aiQuestion, setAiQuestion] = useState('');
   const [aiResponse, setAiResponse] = useState('');
@@ -27,6 +27,9 @@ const CoursePlayer = ({ courseId, onBack }) => {
   const [timeSpent, setTimeSpent] = useState(0);
   const lastTimeRef = useRef(Date.now());
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [videoCompleted, setVideoCompleted] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
 
   const isMobile = window.innerWidth < 768;
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -340,6 +343,27 @@ const CoursePlayer = ({ courseId, onBack }) => {
     }
   };
 
+  const handleFullscreen = () => {
+    if (videoRef.current) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        videoRef.current.requestFullscreen();
+      }
+    }
+  };
+
+  const handleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const handleVideoEnded = () => {
+    setVideoCompleted(true);
+  };
+
   if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
   if (error) return <div className="text-red-500 text-center">{error}</div>;
   if (!course) return <div className="text-center">Course not found</div>;
@@ -355,61 +379,53 @@ const CoursePlayer = ({ courseId, onBack }) => {
           {toast.message}
         </div>
       )}
-      <div className="flex flex-1 flex-col md:flex-row">
+      <div className="flex flex-1 flex-col md:flex-row-reverse w-full">
         {/* Sidebar */}
         {isMobile ? (
-          <div className="md:hidden">
-            <button
-              className="w-full flex items-center justify-between bg-white px-4 py-3 border-b shadow"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-            >
-              <span className="font-bold text-lg">Course Modules</span>
-              <ChevronLeft className={`w-5 h-5 transition-transform ${sidebarOpen ? 'rotate-90' : '-rotate-90'}`} />
-            </button>
-            {sidebarOpen && (
-              <div className="bg-white border-b shadow-md">
-                <div className="p-4">
-                  {course.modules.map((module, moduleIndex) => (
-                    <div key={moduleIndex} className="mb-4">
-                      <h3 className="font-semibold text-gray-800 mb-2">
-                        Module {moduleIndex + 1}: {module.title}
-                      </h3>
-                      <div className="space-y-1">
-                        {(Array.isArray(module.videos) && module.videos.length > 0) ? (
-                          module.videos.map((video, videoIndex) => {
-                            const isCompleted = progress[`${moduleIndex}-${videoIndex}`]?.completed;
-                            const isActive = currentModule === moduleIndex && currentVideo === videoIndex;
-                            return (
-                              <button
-                                key={videoIndex}
-                                onClick={() => handleVideoSelect(moduleIndex, videoIndex)}
-                                className={`w-full text-left p-2 rounded text-sm ${
-                                  isActive
-                                    ? 'bg-blue-100 text-blue-800 border-l-4 border-blue-500'
-                                    : isCompleted
-                                      ? 'bg-green-50 text-green-700'
-                                      : 'text-gray-600 hover:bg-gray-50'
-                                  }`}
-                              >
-                                <div className="flex items-center">
-                                  {isCompleted && <span className="w-2 h-2 bg-green-500 rounded-full mr-2 inline-block" title="Watched" />}
-                                  <span className="truncate">{video.title || `Video ${videoIndex + 1}`}</span>
-                                </div>
-                              </button>
-                            );
-                          })
-                        ) : (
-                          <div className="text-gray-400 italic text-xs">No videos in this module</div>
-                        )}
-                      </div>
+          <div className="fixed inset-0 z-40 bg-black bg-opacity-50" style={{ display: sidebarOpen ? 'block' : 'none' }}>
+            <div className="absolute right-0 top-0 h-full w-3/4 bg-white shadow-lg overflow-y-auto">
+              <button onClick={() => setSidebarOpen(false)} className="absolute top-2 right-2 text-gray-600">Close</button>
+              <div className="p-4">
+                {course.modules.map((module, moduleIndex) => (
+                  <div key={moduleIndex} className="mb-4">
+                    <h3 className="font-semibold text-gray-800 mb-2">
+                      Module {moduleIndex + 1}: {module.title}
+                    </h3>
+                    <div className="space-y-1">
+                      {(Array.isArray(module.videos) && module.videos.length > 0) ? (
+                        module.videos.map((video, videoIndex) => {
+                          const isCompleted = progress[`${moduleIndex}-${videoIndex}`]?.completed;
+                          const isActive = currentModule === moduleIndex && currentVideo === videoIndex;
+                          return (
+                            <button
+                              key={videoIndex}
+                              onClick={() => handleVideoSelect(moduleIndex, videoIndex)}
+                              className={`w-full text-left p-2 rounded text-sm ${
+                                isActive
+                                  ? 'bg-blue-100 text-blue-800 border-l-4 border-blue-500'
+                                  : isCompleted
+                                    ? 'bg-green-50 text-green-700'
+                                    : 'text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                              <div className="flex items-center">
+                                {isCompleted && <span className="w-2 h-2 bg-green-500 rounded-full mr-2 inline-block" title="Watched" />}
+                                <span className="truncate">{video.title || `Video ${videoIndex + 1}`}</span>
+                              </div>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="text-gray-400 italic text-xs">No videos in this module</div>
+                      )}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
           </div>
         ) : (
-          <div className="w-80 bg-white shadow-lg overflow-y-auto hidden md:block">
+          <div className="w-full md:w-1/4 max-w-xs bg-white shadow-lg overflow-y-auto border-l border-gray-200">
             <div className="p-4 border-b">
               <button onClick={onBack} className="flex items-center text-gray-600 hover:text-gray-800">
                 <ChevronLeft className="w-5 h-5 mr-2" />
@@ -458,7 +474,7 @@ const CoursePlayer = ({ courseId, onBack }) => {
         )}
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col min-h-screen">
+        <div className="w-full md:w-3/4 max-w-full p-2">
           {/* Video Player */}
           <div className="bg-black relative">
             <video
@@ -466,10 +482,15 @@ const CoursePlayer = ({ courseId, onBack }) => {
               className="w-full h-56 sm:h-72 md:h-96 object-contain"
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={handleTimeUpdate}
+              onEnded={handleVideoEnded}
               playbackRate={playbackRate}
+              controls={false}
+              muted={isMuted}
             >
               {currentVideoData?.url && (
-                <source src={currentVideoData.url} type="video/mp4" />
+                <source src={currentVideoData.url.startsWith('/uploads') 
+                  ? `http://localhost:5000${currentVideoData.url}` 
+                  : currentVideoData.url} type="video/mp4" />
               )}
               Your browser does not support the video tag.
             </video>
@@ -479,21 +500,9 @@ const CoursePlayer = ({ courseId, onBack }) => {
                 <button onClick={togglePlay} className="text-white">
                   {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
                 </button>
-                <div className="flex-1 bg-gray-600 rounded-full h-1">
-                  <div 
-                    className="bg-white h-1 rounded-full"
-                    style={{ width: `${(currentTime / duration) * 100}%` }}
-                  />
-                </div>
                 <span className="text-white text-xs sm:text-sm">
                   {formatTime(currentTime)} / {formatTime(duration)}
                 </span>
-                <button className="text-white">
-                  <Volume2 className="w-5 h-5" />
-                </button>
-                <button className="text-white">
-                  <Maximize className="w-5 h-5" />
-                </button>
                 <select
                   value={playbackRate}
                   onChange={e => {
@@ -508,26 +517,56 @@ const CoursePlayer = ({ courseId, onBack }) => {
                   <option value={1.5}>1.5x</option>
                   <option value={2}>2x</option>
                 </select>
+                <div className="flex-1" />
+                <button className="text-white" onClick={handleMute}>
+                  {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                </button>
+                <button className="text-white" onClick={handleFullscreen}>
+                  <Maximize className="w-5 h-5" />
+                </button>
+                <button className="text-white">
+                  <MoreVertical className="w-5 h-5" />
+                </button>
               </div>
+            </div>
+            {/* Video Slider (Seek Bar) */}
+            <div className="w-full flex items-center px-4 py-2 bg-black">
+              <input
+                type="range"
+                min={0}
+                max={duration}
+                step={0.1}
+                value={currentTime}
+                onChange={e => {
+                  const time = Number(e.target.value);
+                  if (videoRef.current) videoRef.current.currentTime = time;
+                  setCurrentTime(time);
+                }}
+                className="w-full accent-blue-500 h-2 rounded-lg cursor-pointer"
+              />
             </div>
           </div>
 
-          {/* Video Progress Bar */}
-          <div className="w-full bg-gray-200 h-2 rounded-full mt-2">
-            <div
-              className="bg-blue-500 h-2 rounded-full"
-              style={{ width: duration ? `${(currentTime / duration) * 100}%` : '0%' }}
+          {!showQuiz && videoCompleted && course.modules[currentModule]?.quizzes?.length > 0 && (
+            <div className="flex justify-end mt-2">
+              <button
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+                onClick={() => setShowQuiz(true)}
+              >
+                Take Quiz
+              </button>
+            </div>
+          )}
+          {showQuiz && course.modules[currentModule]?.quizzes?.length > 0 && (
+            <QuizComponent
+              quizzes={course.modules[currentModule].quizzes}
+              onNext={() => {
+                setShowQuiz(false);
+                setVideoCompleted(false);
+                // handle next module or feedback logic here
+              }}
             />
-          </div>
-
-          {/* Course Progress Bar */}
-          <div className="w-full flex items-center gap-2 bg-green-200 h-2 rounded-full mt-4 mb-2">
-            <div
-              className="bg-green-600 h-2 rounded-full transition-all duration-200"
-              style={{ width: `${courseProgressPercent}%` }}
-            />
-            <span className="ml-2 text-green-700 font-semibold text-sm">{courseProgressPercent}%</span>
-          </div>
+          )}
 
           {/* Tab Navigation */}
           <div className="flex justify-center bg-white border-b shadow-sm z-10">

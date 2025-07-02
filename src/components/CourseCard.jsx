@@ -37,7 +37,9 @@ const CourseCard = ({ course, onClick, onStartCourse, isPurchased = false }) => 
     >
       <div className="relative">
         <img 
-          src={courseData.image || '/default-course.png'} 
+          src={courseData.image?.startsWith('/uploads') 
+            ? `http://localhost:5000${courseData.image}` 
+            : '/default-course.png'} 
           alt={courseData.title}
           className="w-full h-48 object-cover"
         />

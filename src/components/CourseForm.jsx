@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Save, Loader2, ChevronDown } from 'lucide-react';
 
+const API_BASE_URL = 'http://localhost:5000';
+
 const CourseForm = ({ course, onSubmit, onCancel, isEditing = false }) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -17,6 +19,7 @@ const CourseForm = ({ course, onSubmit, onCancel, isEditing = false }) => {
   const [moduleVideos, setModuleVideos] = useState([]); // Array of File[] per module
   const [openModule, setOpenModule] = useState(0); // Accordion state
   const [thumbnailFile, setThumbnailFile] = useState(null); // NEW: for image file
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // Predefined categories and levels
   const categories = [
@@ -33,14 +36,16 @@ const CourseForm = ({ course, onSubmit, onCancel, isEditing = false }) => {
         duration: course.duration || '',
         category: course.category || '',
         level: course.level || 'beginner',
-        thumbnail: '', // will be handled by thumbnailFile
+        thumbnail: course.thumbnail || '',
         modules: course.modules?.map(m => ({
           ...m,
           quizzes: m.quizzes || [],
         })) || []
       });
       setThumbnailFile(null); // reset thumbnail file
-      setModuleVideos(course.modules?.map(m => m.videos?.map(v => ({ file: v.url || v, description: v.description || '' })) || []) || []);
+      setModuleVideos(course.modules?.map(m =>
+        m.videos?.map(v => ({ file: v.url || v, description: v.description || '', isExisting: true })) || []
+      ) || []);
     }
   }, [course]);
 
@@ -69,7 +74,19 @@ const CourseForm = ({ course, onSubmit, onCancel, isEditing = false }) => {
   const handleVideoChange = (moduleIdx, files) => {
     setModuleVideos(prev => {
       const updated = [...prev];
-      updated[moduleIdx] = Array.from(files).map(file => ({ file, description: '' }));
+      // Keep existing videos, add new ones
+      const existing = updated[moduleIdx]?.filter(v => v.isExisting) || [];
+      updated[moduleIdx] = [
+        ...existing,
+        ...Array.from(files).map(file => ({ file, description: '', isExisting: false }))
+      ];
+      return updated;
+    });
+  };
+  const handleRemoveVideo = (moduleIdx, videoIdx) => {
+    setModuleVideos(prev => {
+      const updated = [...prev];
+      updated[moduleIdx] = updated[moduleIdx].filter((_, i) => i !== videoIdx);
       return updated;
     });
   };
@@ -169,8 +186,7 @@ const CourseForm = ({ course, onSubmit, onCancel, isEditing = false }) => {
     setIsSubmitting(true);
     try {
       // Check if we have any files to upload
-      const hasFiles = thumbnailFile || moduleVideos.some(videos => videos && videos.length > 0);
-      
+      const hasFiles = thumbnailFile || moduleVideos.some(videos => videos && videos.some(v => !v.isExisting));
       if (hasFiles) {
         // Use FormData for file uploads
         const fd = new FormData();
@@ -181,19 +197,17 @@ const CourseForm = ({ course, onSubmit, onCancel, isEditing = false }) => {
         fd.append('category', formData.category);
         fd.append('level', formData.level);
         if (thumbnailFile) fd.append('thumbnail', thumbnailFile);
-        
         // Prepare modules (without videos)
         const modulesForBackend = formData.modules.map((mod, idx) => {
           const { videos, ...rest } = mod;
           return rest;
         });
         fd.append('modules', JSON.stringify(modulesForBackend));
-        
-        // Send all videos with a single field name 'videos' and include module index in description
+        // Send all new videos as files, and keep info for existing videos
         moduleVideos.forEach((videos, moduleIdx) => {
           if (videos && videos.length > 0) {
             videos.forEach((video, videoIdx) => {
-              if (video.file instanceof File) {
+              if (!video.isExisting && video.file instanceof File) {
                 fd.append('videos', video.file);
                 // Include module index and video index in description for backend to parse
                 const videoInfo = {
@@ -206,16 +220,15 @@ const CourseForm = ({ course, onSubmit, onCancel, isEditing = false }) => {
             });
           }
         });
-        
-        // Debug: Log what's being sent
-        console.log('=== FRONTEND DEBUG (FormData) ===');
-        console.log('FormData contents:');
-        for (let [key, value] of fd.entries()) {
-          console.log(`${key}:`, value);
-        }
-        console.log('========================');
-        
+        // Add kept existing videos info as a field
+        fd.append('existingVideos', JSON.stringify(
+          moduleVideos.map(videos =>
+            videos.filter(v => v.isExisting).map(v => ({ url: v.file, description: v.description }))
+          )
+        ));
         await onSubmit(fd);
+        // Show success notification
+        showToast('Course updated successfully!', 'success');
       } else {
         // Use JSON for data without files
         const courseData = {
@@ -229,16 +242,11 @@ const CourseForm = ({ course, onSubmit, onCancel, isEditing = false }) => {
             const { videos, ...rest } = mod;
             return {
               ...rest,
-              duration: parseInt(rest.duration)
+              duration: parseInt(rest.duration),
+              videos: moduleVideos[idx]?.filter(v => v.isExisting).map(v => ({ url: v.file, description: v.description })) || []
             };
           })
         };
-        
-        // Debug: Log what's being sent
-        console.log('=== FRONTEND DEBUG (JSON) ===');
-        console.log('JSON data:', courseData);
-        console.log('========================');
-        
         await onSubmit(courseData);
       }
     } catch (error) {
@@ -250,6 +258,11 @@ const CourseForm = ({ course, onSubmit, onCancel, isEditing = false }) => {
 
   // Accordion toggle
   const toggleModule = idx => setOpenModule(openModule === idx ? -1 : idx);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 2500);
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -302,7 +315,9 @@ const CourseForm = ({ course, onSubmit, onCancel, isEditing = false }) => {
               <label className="block text-sm font-medium text-gray-700 mb-2">Thumbnail Image *</label>
               <input type="file" accept="image/*" onChange={handleThumbnailChange} className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${errors.thumbnail ? 'border-red-500' : 'border-gray-300'}`} disabled={isSubmitting} />
               {errors.thumbnail && <p className="text-red-500 text-sm mt-1">{errors.thumbnail}</p>}
-              {thumbnailFile && <p className="text-xs text-gray-500 mt-1">Selected: {thumbnailFile.name}</p>}
+              {!thumbnailFile && formData.thumbnail && formData.thumbnail.startsWith('/uploads') && (
+                <img src={`http://localhost:5000${formData.thumbnail}`} alt="Current Thumbnail" className="w-32 h-20 object-cover rounded mb-2" />
+              )}
             </div>
           </div>
           {/* Description */}
@@ -425,6 +440,11 @@ const CourseForm = ({ course, onSubmit, onCancel, isEditing = false }) => {
             </button>
           </div>
         </form>
+        {toast.show && (
+          <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg text-white font-semibold transition-all ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+            {toast.message}
+          </div>
+        )}
       </div>
     </div>
   );

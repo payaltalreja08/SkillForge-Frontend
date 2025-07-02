@@ -51,9 +51,13 @@ const CourseDetailPage = ({
         
         <div className="grid lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2">
-            {(course.image || '/default-course.png') && (
+            {(course.image?.startsWith('/uploads') 
+              ? `http://localhost:5000${course.image}` 
+              : '/default-course.png') && (
               <img 
-                src={course.image || '/default-course.png'} 
+                src={course.image?.startsWith('/uploads') 
+                  ? `http://localhost:5000${course.image}` 
+                  : '/default-course.png'} 
                 alt={course.title}
                 className="w-full h-64 object-cover rounded-2xl mb-8"
               />
