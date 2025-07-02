@@ -23,9 +23,6 @@ authType: { type: String, enum: ['local', 'oauth'], default: 'local' },
     completed: { type: Boolean, default: false }
   }],
   totalStreak: { type: Number, default: 0 },
-  lastLoginDate: { type: Date, default: Date.now },
-  currentStreak: { type: Number, default: 0 },
-  longestStreak: { type: Number, default: 0 },
   certificates: [{ type: String }],
 
   // Instructor

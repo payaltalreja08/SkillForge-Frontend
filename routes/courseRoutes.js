@@ -7,6 +7,7 @@ const commentController = require('../controllers/commentController');
 const feedbackController = require('../controllers/feedbackController');
 const certificateController = require('../controllers/certificateController');
 const upload = require('../middleware/upload');
+const uploadCourseFiles = require('../middleware/uploadCourseFiles');
 
 // Custom middleware to handle any video field names
 const handleVideoUploads = (req, res, next) => {
@@ -46,8 +47,14 @@ router.post('/update-time', requireAuth, courseController.updateTimeSpent);
 router.get('/:id', courseController.getCourseById);
 
 // Protected routes (require authentication)
-router.post('/', authenticateToken, upload.single('thumbnail'), uploadVideos.array('videos', 20), courseController.createCourse);
-router.put('/:id', authenticateToken, upload.single('thumbnail'), uploadVideos.array('videos', 20), courseController.updateCourse);
+router.post('/', authenticateToken, uploadCourseFiles.fields([
+  { name: 'thumbnail', maxCount: 1 },
+  { name: 'videos', maxCount: 20 }
+]), courseController.createCourse);
+router.put('/:id', authenticateToken, uploadCourseFiles.fields([
+  { name: 'thumbnail', maxCount: 1 },
+  { name: 'videos', maxCount: 20 }
+]), courseController.updateCourse);
 router.delete('/:id', authenticateToken, courseController.deleteCourse);
 
 module.exports = router; 

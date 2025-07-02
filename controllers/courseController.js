@@ -77,7 +77,7 @@ exports.getCourseById = async (req, res) => {
 
 // Helper to map uploaded videos and descriptions to modules
 function attachVideosToModules(modules, files, body) {
-  // files: [{ fieldname: 'videos', ... }, ...] - from uploadVideos.array('videos')
+  // files: array of video files (from req.files['videos'])
   // body: contains videoDescriptions as JSON strings with moduleIndex and videoIndex
   const moduleVideos = {};
   
@@ -103,9 +103,8 @@ function attachVideosToModules(modules, files, body) {
       if (videoInfo && videoInfo.moduleIndex !== undefined) {
         const moduleIdx = videoInfo.moduleIndex;
         if (!moduleVideos[moduleIdx]) moduleVideos[moduleIdx] = [];
-        
         moduleVideos[moduleIdx].push({
-          url: file.path.replace(/\\/g, '/'),
+          url: '/uploads/videos/' + file.filename,
           description: videoInfo.description || ''
         });
       }
@@ -164,21 +163,20 @@ exports.createCourse = async (req, res) => {
 
     // Handle modules with videos if files are uploaded
     let modulesWithVideos;
-    if (req.files && req.files.length > 0) {
-      // Use the attachVideosToModules function for file uploads
-      modulesWithVideos = attachVideosToModules(modules, req.files, req.body);
+    const videoFiles = req.files && req.files['videos'] ? req.files['videos'] : [];
+    if (videoFiles.length > 0) {
+      modulesWithVideos = attachVideosToModules(modules, videoFiles, req.body);
     } else {
-      // No files uploaded, create modules without videos
       modulesWithVideos = modules.map((mod, idx) => ({
         ...mod,
-        videos: [] // Empty videos array
+        videos: []
       }));
     }
 
     // Handle thumbnail image upload
-    let thumbnailPath = 'default-course.jpg';
-    if (req.file) {
-      thumbnailPath = req.file.path.replace(/\\/g, '/');
+    let thumbnailPath = '/uploads/default-course.jpg';
+    if (req.files && req.files['thumbnail'] && req.files['thumbnail'][0]) {
+      thumbnailPath = '/uploads/' + req.files['thumbnail'][0].filename;
     }
 
     console.log('Creating course with data:', {
@@ -232,17 +230,28 @@ exports.updateCourse = async (req, res) => {
     }
     let modules = req.body.modules;
     if (typeof modules === 'string') modules = JSON.parse(modules);
-    const modulesWithVideos = attachVideosToModules(modules, req.files || [], req.body);
+    const videoFiles = req.files && req.files['videos'] ? req.files['videos'] : [];
+    const newModulesWithVideos = attachVideosToModules(modules, videoFiles, req.body);
+    // Merge with existing videos if no new videos uploaded for a module
+    const mergedModules = newModulesWithVideos.map((mod, idx) => {
+      if (!mod.videos || mod.videos.length === 0) {
+        return {
+          ...mod,
+          videos: course.modules[idx]?.videos || []
+        };
+      }
+      return mod;
+    });
     // Handle thumbnail image upload
     let thumbnailPath = course.thumbnail;
-    if (req.file) {
-      thumbnailPath = req.file.path.replace(/\\/g, '/');
+    if (req.files && req.files['thumbnail'] && req.files['thumbnail'][0]) {
+      thumbnailPath = '/uploads/' + req.files['thumbnail'][0].filename;
     }
     const updatedCourse = await Course.findByIdAndUpdate(
       req.params.id,
       {
         ...req.body,
-        modules: modulesWithVideos,
+        modules: mergedModules,
         thumbnail: thumbnailPath
       },
       { new: true, runValidators: true }
