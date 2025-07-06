@@ -12,6 +12,7 @@ import CourseAnalytics from './components/CourseAnalytics';
 import Footer from './components/Footer';
 import AuthModal from './components/AuthModal';
 import Toast from './components/Toast';
+import AboutUsPage from './components/AboutUsPage';
 
 // API base URL
 const API_BASE_URL = 'http://localhost:5000';
@@ -20,7 +21,7 @@ const App = () => {
   // Main app state
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedCourse, setSelectedCourse] = useState(null);
-  const [purchasedCourses, setPurchasedCourses] = useState([]);
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -386,9 +387,9 @@ const App = () => {
           instructorDashboardRef.current.refresh();
         }
         
-        // Update purchased courses list
-        if (!purchasedCourses.includes(courseId)) {
-          setPurchasedCourses([...purchasedCourses, courseId]);
+        // Update enrolled courses list
+        if (!enrolledCourses.includes(courseId)) {
+          setEnrolledCourses([...enrolledCourses, courseId]);
         }
       } else {
         const errorData = await response.json();
@@ -438,7 +439,7 @@ const App = () => {
       if (response.ok) {
         const data = await response.json();
         const enrolledCourseIds = data.enrolledCourses.map(course => course._id);
-        setPurchasedCourses(enrolledCourseIds);
+        setEnrolledCourses(enrolledCourseIds);
       }
     } catch (error) {
       console.error('Error fetching user enrollments:', error);
@@ -468,7 +469,7 @@ const App = () => {
       setShowAuthModal(true);
       return;
     }
-    if (!purchasedCourses.includes(courseId)) {
+    if (!enrolledCourses.includes(courseId)) {
       alert('Please purchase this course first.');
       return;
     }
@@ -482,13 +483,35 @@ const App = () => {
     setCurrentCourseId(null);
   };
 
+  const handleFeedbackSubmitted = () => {
+    // Refresh instructor dashboard if user is an instructor
+    if (currentUser?.role === 'instructor' && instructorDashboardRef.current) {
+      instructorDashboardRef.current.refresh();
+    }
+    // Refresh courses to update ratings
+    const fetchCourses = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/courses`);
+        if (response.ok) {
+          const data = await response.json();
+          setCourses(data.courses || data);
+        }
+      } catch (error) {
+        console.error('Error refreshing courses:', error);
+      }
+    };
+    fetchCourses();
+  };
+
   // Handle user logout
   const handleLogout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     setIsLoggedIn(false);
     setCurrentUser(null);
-    setPurchasedCourses([]);
+    setEnrolledCourses([]);
+    setSelectedCourse(null);
+    setCurrentPage('home'); // Redirect to home page after logout
   };
 
   // Handle successful authentication
@@ -516,7 +539,7 @@ const App = () => {
         
         // Fetch user enrollments
         const enrolledCourseIds = dashboardData.enrolledCourses.map(course => course._id);
-        setPurchasedCourses(enrolledCourseIds);
+        setEnrolledCourses(enrolledCourseIds);
         
         showToast('Login successful!', 'success');
       } else {
@@ -580,8 +603,26 @@ const App = () => {
     setAnalyticsCourseId(null);
   };
 
+  // Persist currentPage and selectedCourse in localStorage
+  useEffect(() => {
+    localStorage.setItem('currentPage', currentPage);
+    if (selectedCourse) {
+      localStorage.setItem('selectedCourse', JSON.stringify(selectedCourse));
+    } else {
+      localStorage.removeItem('selectedCourse');
+    }
+  }, [currentPage, selectedCourse]);
+
+  // Restore currentPage and selectedCourse on app load
+  useEffect(() => {
+    const savedPage = localStorage.getItem('currentPage');
+    const savedCourse = localStorage.getItem('selectedCourse');
+    if (savedPage) setCurrentPage(savedPage);
+    if (savedCourse) setSelectedCourse(JSON.parse(savedCourse));
+  }, []);
+
   return (
-    <div className="min-h-screen bg-white">
+    <>
       <Navbar 
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
@@ -592,30 +633,27 @@ const App = () => {
         onSetAuthMode={setAuthMode}
         onShowDashboard={handleShowDashboard}
       />
-      
       {currentPage === 'home' && (
         <>
-          <HeroSection onExploreClick={() => setCurrentPage('courses')} />
+          <HeroSection onExploreClick={() => window.location.href='/courses'} />
           <FeatureSection />
         </>
       )}
-      
       {currentPage === 'courses' && (
         <CoursesPage 
           courses={courses}
           onCourseSelect={handleCourseSelect}
           onStartCourse={handleStartCourse}
-          purchasedCourses={purchasedCourses}
+          enrolledCourses={enrolledCourses}
           loading={coursesLoading}
           error={coursesError}
         />
       )}
-      
-      {currentPage === 'course-detail' && selectedCourse && (
+      {currentPage === 'course-detail' && (
         <CourseDetailPage 
           course={selectedCourse}
           courses={courses}
-          isPurchased={purchasedCourses.includes(selectedCourse.id)}
+          isPurchased={selectedCourse && enrolledCourses.includes(selectedCourse.id)}
           isLoggedIn={isLoggedIn}
           onBuyCourse={handleBuyCourse}
           onStartCourse={handleStartCourse}
@@ -623,46 +661,48 @@ const App = () => {
           onCourseSelect={handleCourseSelect}
         />
       )}
-      
       {currentPage === 'course-management' && (
         <CourseManagement 
           currentUser={currentUser}
-          onBackToCourses={() => setCurrentPage('courses')}
+          onBackToCourses={() => window.location.href='/courses'}
+          showCreateModal={currentPage === 'course-management' && !currentCourseId}
+          editCourseId={currentCourseId}
         />
       )}
-
-      {currentPage === 'course-player' && currentCourseId && (
+      {currentPage === 'course-player' && (
         <CoursePlayer 
           courseId={currentCourseId}
           onBack={handleBackFromPlayer}
+          onFeedbackSubmitted={handleFeedbackSubmitted}
         />
       )}
-
-      {currentPage === 'dashboard' && currentUser && (
+      {currentPage === 'dashboard' && (
+        currentUser ? (
         currentUser.role === 'instructor' ? (
           <InstructorDashboard 
             ref={instructorDashboardRef}
-            onBack={() => setCurrentPage('courses')}
+              onBack={() => window.location.href='/courses'}
             onShowAnalytics={handleShowAnalytics}
           />
         ) : (
           <UserDashboard 
             ref={userDashboardRef}
-            onBack={() => setCurrentPage('courses')}
+              onBack={() => window.location.href='/courses'}
             onContinueCourse={handleContinueCourse}
           />
         )
+        ) : <Navigate to="/" />
       )}
-
-      {currentPage === 'course-analytics' && analyticsCourseId && (
+      {currentPage === 'course-analytics' && (
         <CourseAnalytics 
           courseId={analyticsCourseId}
           onBack={handleBackFromAnalytics}
         />
       )}
-      
+      {currentPage === 'about' && (
+        <AboutUsPage />
+      )}
       <Footer />
-      
       {showAuthModal && (
         <AuthModal 
           showAuthModal={showAuthModal}
@@ -681,8 +721,6 @@ const App = () => {
           isLoading={isLoading}
         />
       )}
-
-      {/* Toast Notification */}
       {toast.show && (
         <Toast
           message={toast.message}
@@ -690,7 +728,7 @@ const App = () => {
           onClose={hideToast}
         />
       )}
-    </div>
+    </>
   );
 };
 

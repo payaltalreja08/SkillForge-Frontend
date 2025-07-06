@@ -54,38 +54,13 @@ const Navbar = ({
           
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-8">
-              <button 
-                onClick={() => setCurrentPage('home')}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  currentPage === 'home' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:text-indigo-600'
-                }`}
-              >
-                Home
-              </button>
-              <button 
-                onClick={() => setCurrentPage('courses')}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  currentPage === 'courses' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:text-indigo-600'
-                }`}
-              >
-                Courses
-              </button>
+              <button onClick={() => setCurrentPage('home')} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 'home' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:text-indigo-600'}`}>Home</button>
+              <button onClick={() => setCurrentPage('courses')} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 'courses' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:text-indigo-600'}`}>Courses</button>
               {isLoggedIn && isInstructor && (
-                <button 
-                  onClick={() => setCurrentPage('course-management')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    currentPage === 'course-management' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:text-indigo-600'
-                  }`}
-                >
-                  My Courses
-                </button>
+                <button onClick={() => setCurrentPage('course-management')} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 'course-management' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:text-indigo-600'}`}>My Courses</button>
               )}
-              <button className="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                About
-              </button>
-              <button className="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                Contact
-              </button>
+              <button onClick={() => setCurrentPage('about')} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 'about' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:text-indigo-600'}`}>About</button>
+              <button onClick={() => setCurrentPage('contact')} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 'contact' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:text-indigo-600'}`}>Contact</button>
             </div>
           </div>
           
@@ -183,32 +158,13 @@ const Navbar = ({
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-16 left-0 w-full bg-white shadow-lg z-50 flex flex-col space-y-2 p-4">
-          <button 
-            onClick={() => setCurrentPage('home')}
-            className="block px-4 py-2 rounded-lg text-base font-medium text-gray-700 hover:text-indigo-600"
-          >
-            Home
-          </button>
-          <button 
-            onClick={() => setCurrentPage('courses')}
-            className="block px-4 py-2 rounded-lg text-base font-medium text-gray-700 hover:text-indigo-600"
-          >
-            Courses
-          </button>
+          <button onClick={() => setCurrentPage('home')} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 'home' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:text-indigo-600'}`}>Home</button>
+          <button onClick={() => setCurrentPage('courses')} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 'courses' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:text-indigo-600'}`}>Courses</button>
           {isLoggedIn && isInstructor && (
-            <button 
-              onClick={() => setCurrentPage('course-management')}
-              className="block px-4 py-2 rounded-lg text-base font-medium text-gray-700 hover:text-indigo-600"
-            >
-              My Courses
-            </button>
+            <button onClick={() => setCurrentPage('course-management')} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 'course-management' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:text-indigo-600'}`}>My Courses</button>
           )}
-          <button className="block px-4 py-2 rounded-lg text-base font-medium text-gray-700 hover:text-indigo-600">
-            About
-          </button>
-          <button className="block px-4 py-2 rounded-lg text-base font-medium text-gray-700 hover:text-indigo-600">
-            Contact
-          </button>
+          <button onClick={() => setCurrentPage('about')} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 'about' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:text-indigo-600'}`}>About</button>
+          <button onClick={() => setCurrentPage('contact')} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 'contact' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:text-indigo-600'}`}>Contact</button>
           {isLoggedIn ? (
             <div className="relative mt-2">
               <button

@@ -12,6 +12,7 @@ const InstructorDashboard = forwardRef(({ onBack, onShowAnalytics, refreshTrigge
   const [activeView, setActiveView] = useState('overview');
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [recentFeedback, setRecentFeedback] = useState([]);
 
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1'];
 
@@ -26,6 +27,22 @@ const InstructorDashboard = forwardRef(({ onBack, onShowAnalytics, refreshTrigge
       if (!response.ok) throw new Error('Failed to fetch dashboard data');
       const data = await response.json();
       setDashboardData(data);
+      
+      // Extract recent feedback from all courses
+      const allFeedback = [];
+      data.courses.forEach(course => {
+        if (course.recentFeedback) {
+          allFeedback.push(...course.recentFeedback.map(feedback => ({
+            ...feedback,
+            courseName: course.name,
+            courseId: course._id
+          })));
+        }
+      });
+      
+      // Sort by date and take the most recent 10
+      allFeedback.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setRecentFeedback(allFeedback.slice(0, 10));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -180,6 +197,28 @@ const InstructorDashboard = forwardRef(({ onBack, onShowAnalytics, refreshTrigge
         </div>
       </div>
 
+      {/* Additional Stats Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-lg p-6 shadow-md border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm">Total Feedback</p>
+              <p className="text-2xl font-bold text-gray-800">{recentFeedback.length}</p>
+            </div>
+            <MessageSquare className="w-8 h-8 text-blue-500" />
+          </div>
+        </div>
+        <div className="bg-white rounded-lg p-6 shadow-md border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm">Active Students</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.totalStudents}</p>
+            </div>
+            <Users className="w-8 h-8 text-green-500" />
+          </div>
+        </div>
+      </div>
+
       {/* Courses List */}
       <div className="bg-white rounded-lg shadow-md border border-gray-100">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
@@ -208,9 +247,11 @@ const InstructorDashboard = forwardRef(({ onBack, onShowAnalytics, refreshTrigge
               {courses.map(course => (
                 <div key={course._id} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
                   <img 
-                    src={course.thumbnail || '/default-course.png'} 
+                    src={course.thumbnail?.startsWith('/uploads')
+                      ? `http://localhost:5000${course.thumbnail}`
+                      : '/default-course.png'}
                     alt={course.name}
-                    className="w-20 h-14 object-cover rounded-md"
+                    className="w-20 h-20 object-cover rounded-lg"
                   />
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-800">{course.name}</h3>
@@ -252,6 +293,42 @@ const InstructorDashboard = forwardRef(({ onBack, onShowAnalytics, refreshTrigge
             {/* You can render your CourseForm component here */}
             <h3 className="text-xl font-bold mb-4">Create New Course</h3>
             <p>Course creation form goes here.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Recent Feedback Section */}
+      {recentFeedback.length > 0 && (
+        <div className="bg-white rounded-lg shadow-md border border-gray-100">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-800 flex items-center">
+              <MessageSquare className="w-6 h-6 mr-2 text-blue-500" />
+              Recent Student Feedback
+            </h2>
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              {recentFeedback.map((feedback, index) => (
+                <div key={feedback._id || index} className="border-l-4 border-blue-400 pl-4 py-3 bg-gray-50 rounded-r-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-3">
+                      <span className="font-medium text-gray-800">{feedback.user?.name || 'Anonymous'}</span>
+                      <div className="flex">
+                        {[...Array(5)].map((_, i) => (
+                          <Star 
+                            key={i} 
+                            className={`w-4 h-4 ${i < feedback.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm text-gray-500">• {feedback.courseName}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">{formatDate(feedback.createdAt)}</span>
+                  </div>
+                  <p className="text-gray-600">{feedback.review}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -298,9 +375,11 @@ const InstructorDashboard = forwardRef(({ onBack, onShowAnalytics, refreshTrigge
           </div>
           <div className="flex items-center space-x-4">
             <img 
-              src={selectedCourse.thumbnail || '/default-course.png'} 
+              src={selectedCourse.thumbnail?.startsWith('/uploads')
+                ? `http://localhost:5000${selectedCourse.thumbnail}`
+                : '/default-course.png'}
               alt={selectedCourse.name}
-              className="w-16 h-12 object-cover rounded-lg"
+              className="w-16 h-16 rounded-lg object-cover"
             />
             <div>
               <h2 className="text-2xl font-bold text-gray-800">{selectedCourse.name}</h2>

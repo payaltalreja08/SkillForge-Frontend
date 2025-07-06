@@ -2,7 +2,7 @@ import React from 'react';
 import CourseCard from './CourseCard';
 import { Loader2, AlertCircle } from 'lucide-react';
 
-const CoursesPage = ({ courses, onCourseSelect, onStartCourse, purchasedCourses = [], loading = false, error = null }) => {
+const CoursesPage = ({ courses, onCourseSelect, onStartCourse, enrolledCourses = [], loading = false, error = null }) => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
@@ -78,7 +78,7 @@ const CoursesPage = ({ courses, onCourseSelect, onStartCourse, purchasedCourses 
                 course={course} 
                 onClick={onCourseSelect}
                 onStartCourse={onStartCourse}
-                isPurchased={purchasedCourses.includes(course._id)}
+                isPurchased={enrolledCourses.includes(course._id)}
               />
             ))}
           </div>

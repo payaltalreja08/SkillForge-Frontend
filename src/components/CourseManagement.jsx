@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Eye, Loader2, AlertCircle } from 'lucide-react';
 import CourseForm from './CourseForm';
 
-const CourseManagement = ({ currentUser, onBackToCourses }) => {
+const CourseManagement = ({ currentUser, onBackToCourses, showCreateModal, editCourseId }) => {
   const [myCourses, setMyCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -45,6 +45,19 @@ const CourseManagement = ({ currentUser, onBackToCourses }) => {
       fetchMyCourses();
     }
   }, [currentUser]);
+
+  // Open create modal if showCreateModal prop is true
+  useEffect(() => {
+    if (showCreateModal) setShowCreateForm(true);
+  }, [showCreateModal]);
+
+  // Open edit modal if editCourseId prop is set
+  useEffect(() => {
+    if (editCourseId && myCourses.length > 0) {
+      const courseToEdit = myCourses.find(c => c._id === editCourseId);
+      if (courseToEdit) setEditingCourse(courseToEdit);
+    }
+  }, [editCourseId, myCourses]);
 
   // Create new course
   const handleCreateCourse = async (courseData) => {
@@ -141,6 +154,12 @@ const CourseManagement = ({ currentUser, onBackToCourses }) => {
     }
   };
 
+  // When closing modals, update the URL
+  const handleCloseModal = () => {
+    setShowCreateForm(false);
+    setEditingCourse(null);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
@@ -228,9 +247,11 @@ const CourseManagement = ({ currentUser, onBackToCourses }) => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <img 
-                        src={course.thumbnail} 
+                        src={course.thumbnail && course.thumbnail.startsWith('/uploads')
+                          ? `${API_BASE_URL}${course.thumbnail}`
+                          : (course.thumbnail || '/default-course.png')}
                         alt={course.name}
-                        className="w-16 h-12 object-cover rounded-lg"
+                        className="w-16 h-16 rounded-lg object-cover"
                       />
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">{course.name}</h3>
@@ -283,10 +304,7 @@ const CourseManagement = ({ currentUser, onBackToCourses }) => {
           <CourseForm
             course={editingCourse}
             onSubmit={editingCourse ? handleUpdateCourse : handleCreateCourse}
-            onCancel={() => {
-              setShowCreateForm(false);
-              setEditingCourse(null);
-            }}
+            onCancel={handleCloseModal}
             isEditing={!!editingCourse}
           />
         )}

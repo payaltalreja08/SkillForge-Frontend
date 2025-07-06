@@ -268,28 +268,18 @@ const UserDashboard = forwardRef(({ onBack, refreshTrigger, onContinueCourse }, 
               {enrolledCourses.map((course) => (
                 <div key={course._id} className="bg-gray-50 rounded-xl p-6">
                   <div className="flex items-start space-x-4">
-                    <img 
-                      src={course.thumbnail || '/default-course.png'} 
+                    <img
+                      src={course.thumbnail?.startsWith('/uploads')
+                        ? `http://localhost:5000${course.thumbnail}`
+                        : '/default-course.png'}
                       alt={course.name}
-                      className="w-16 h-16 rounded-lg object-cover"
+                      className="w-20 h-20 object-cover rounded-lg"
                     />
                     <div className="flex-1 min-w-0">
                       <h4 className="font-semibold text-gray-900 truncate">{course.name}</h4>
                       <p className="text-sm text-gray-600">by {course.instructorName}</p>
                       
                       <div className="mt-3 space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Progress</span>
-                          <span className="font-medium">{course.progress}%</span>
-                        </div>
-                        <div className="w-full flex items-center gap-2 bg-green-200 rounded-full h-2">
-                          <div 
-                            className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${course.progress}%` }}
-                          />
-                          <span className="ml-2 text-green-700 font-semibold text-xs">{course.progress}%</span>
-                        </div>
-                        
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Time Spent</span>
                           <span className="font-medium">{course.timeSpent}h</span>
@@ -308,21 +298,15 @@ const UserDashboard = forwardRef(({ onBack, refreshTrigger, onContinueCourse }, 
                           Continue
                         </button>
                         
-                        <div className="mt-2 flex space-x-2">
+                        {course.certificate ? (
                           <button
-                            onClick={() => {
-                              if (course.isCompleted) {
-                                downloadCertificate(course._id);
-                              } else {
-                                showToast('You must complete the course to access your certificate.', 'warning');
-                              }
-                            }}
-                            className={`bg-green-600 text-white py-2 px-3 rounded-lg text-sm flex items-center justify-center hover:bg-green-700 w-full ${!course.isCompleted ? 'opacity-70' : ''}`}
+                            onClick={() => downloadCertificate(course._id)}
+                            className="bg-green-600 text-white py-2 px-3 rounded-lg text-sm flex items-center justify-center hover:bg-green-700 w-full"
                           >
                             <Download className="w-4 h-4 mr-1" />
-                            Certificate
+                            Download Certificate
                           </button>
-                        </div>
+                        ) : null}
                       </div>
                       
                       {course.isCompleted && (

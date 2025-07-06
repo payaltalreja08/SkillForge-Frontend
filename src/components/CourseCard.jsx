@@ -43,18 +43,17 @@ const CourseCard = ({ course, onClick, onStartCourse, isPurchased = false }) => 
           alt={courseData.title}
           className="w-full h-48 object-cover"
         />
-        <div className="absolute top-4 left-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-3 py-1 rounded-full text-sm font-semibold">
-          ${courseData.price}
-        </div>
-        {courseData.originalPrice > courseData.price && (
-          <div className="absolute top-4 right-4 bg-red-500 text-white px-2 py-1 rounded text-xs font-semibold">
-            Save ${(courseData.originalPrice - courseData.price).toFixed(2)}
-          </div>
-        )}
-        {isPurchased && (
-          <div className="absolute top-4 right-4 bg-green-500 text-white px-2 py-1 rounded text-xs font-semibold">
-            Purchased
-          </div>
+        {!isPurchased && (
+          <>
+            <div className="absolute top-4 left-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-3 py-1 rounded-full text-sm font-semibold">
+              ${courseData.price}
+            </div>
+            {courseData.originalPrice > courseData.price && (
+              <div className="absolute top-4 right-4 bg-red-500 text-white px-2 py-1 rounded text-xs font-semibold">
+                Save ${(courseData.originalPrice - courseData.price).toFixed(2)}
+              </div>
+            )}
+          </>
         )}
       </div>
       <div className="p-6">
@@ -63,7 +62,7 @@ const CourseCard = ({ course, onClick, onStartCourse, isPurchased = false }) => 
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
             <Star className="h-4 w-4 text-yellow-400 fill-current" />
-            <span className="ml-1 text-sm font-semibold text-gray-700">{courseData.rating}</span>
+            <span className="ml-1 text-sm font-semibold text-gray-700">{courseData.rating || 0}</span>
           </div>
           <div className="flex items-center text-gray-500 text-sm">
             <Users className="h-4 w-4 mr-1" />
@@ -74,12 +73,11 @@ const CourseCard = ({ course, onClick, onStartCourse, isPurchased = false }) => 
             {courseData.duration}
           </div>
         </div>
-        {courseData.originalPrice > courseData.price && (
+        {!isPurchased && courseData.originalPrice > courseData.price && (
           <div className="text-sm text-gray-500 line-through mb-2">
             Original: ${courseData.originalPrice}
           </div>
         )}
-        
         {isPurchased ? (
           <button
             onClick={handleStartCourse}
@@ -89,9 +87,12 @@ const CourseCard = ({ course, onClick, onStartCourse, isPurchased = false }) => 
             <span>Start Course</span>
           </button>
         ) : (
-          <div className="text-center">
-            <p className="text-sm text-gray-500 mb-2">Click to view details</p>
-          </div>
+          <button
+            onClick={e => { e.stopPropagation(); onClick(course); }}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+          >
+            <span>Buy</span>
+          </button>
         )}
       </div>
     </div>

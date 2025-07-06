@@ -1,9 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, Play, Pause, Volume2, VolumeX, Maximize, MoreVertical, MessageCircle, BookOpen, Star, Download, Bot } from 'lucide-react';
+import QuizComponent from './QuizComponent';
+import { useParams } from 'react-router-dom';
 
 const API_BASE_URL = 'http://localhost:5000';
 
-const CoursePlayer = ({ courseId, onBack }) => {
+const CoursePlayer = ({ courseId, onBack, onFeedbackSubmitted }) => {
+  // Guard: If courseId is not provided, show error and back button
+  if (!courseId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <p className="text-red-600 text-lg font-semibold mb-4">No course selected. Please go back and select a course.</p>
+        <button
+          onClick={onBack}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
+        >
+          Go Back
+        </button>
+      </div>
+    );
+  }
+
+  const { courseId: urlCourseId } = useParams();
   const [course, setCourse] = useState(null);
   const [currentModule, setCurrentModule] = useState(0);
   const [currentVideo, setCurrentVideo] = useState(0);
@@ -19,6 +37,7 @@ const CoursePlayer = ({ courseId, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState({ message: '', type: '' });
+  const [progressWarning, setProgressWarning] = useState('');
   
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -30,6 +49,10 @@ const CoursePlayer = ({ courseId, onBack }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [videoCompleted, setVideoCompleted] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [showFeedbackCertificate, setShowFeedbackCertificate] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [feedbackThankYou, setFeedbackThankYou] = useState(false);
 
   const isMobile = window.innerWidth < 768;
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -65,9 +88,17 @@ const CoursePlayer = ({ courseId, onBack }) => {
         if (response.ok) {
           const data = await response.json();
           setProgress(data.progress || {});
+          setProgressWarning('');
+        } else if (response.status === 403) {
+          setProgress({});
+          setProgressWarning('Progress tracking is unavailable. Please enroll to track your progress.');
+        } else if (response.status === 404) {
+          setProgress({});
+          setProgressWarning('Progress not found for this course.');
         }
       } catch (err) {
-        console.error('Error fetching progress:', err);
+        setProgress({});
+        setProgressWarning('Error fetching progress.');
       }
     };
     if (course) fetchProgress();
@@ -254,6 +285,12 @@ const CoursePlayer = ({ courseId, onBack }) => {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
+      } else if (response.status === 403) {
+        showToast('You are not authorized to download the certificate. Please log in or purchase the course.', 'error');
+        return;
+      } else if (response.status === 404) {
+        showToast('Certificate not found for this course.', 'error');
+        return;
       }
     } catch (err) {
       console.error('Error downloading certificate:', err);
@@ -364,6 +401,70 @@ const CoursePlayer = ({ courseId, onBack }) => {
     setVideoCompleted(true);
   };
 
+  // Remove playbackRate from <video> and set via useEffect
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = playbackRate;
+    }
+  }, [playbackRate]);
+
+  // 1. Add a handler for toggling video completion
+  const handleVideoCheckbox = async (moduleIndex, videoIndex, checked) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      await fetch(`${API_BASE_URL}/api/progress/${courseId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          moduleIndex,
+          videoIndex,
+          completed: checked
+        })
+      });
+      // Refetch progress from backend
+      const response = await fetch(`${API_BASE_URL}/api/progress/${courseId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProgress(data.progress || {});
+      }
+    } catch (err) {
+      showToast('Error updating progress', 'error');
+    }
+  };
+
+  // 2. Add a handler for toggling quiz completion
+  const handleQuizCheckbox = async (moduleIndex, checked) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      await fetch(`${API_BASE_URL}/api/progress/${courseId}/quiz`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          moduleIndex,
+          completed: checked
+        })
+      });
+      // Refetch progress from backend
+      const response = await fetch(`${API_BASE_URL}/api/progress/${courseId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProgress(data.progress || {});
+      }
+    } catch (err) {
+      showToast('Error updating quiz progress', 'error');
+    }
+  };
+
   if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
   if (error) return <div className="text-red-500 text-center">{error}</div>;
   if (!course) return <div className="text-center">Course not found</div>;
@@ -409,7 +510,14 @@ const CoursePlayer = ({ courseId, onBack }) => {
                                 }`}
                             >
                               <div className="flex items-center">
-                                {isCompleted && <span className="w-2 h-2 bg-green-500 rounded-full mr-2 inline-block" title="Watched" />}
+                                {/* Interactive checkbox for completion */}
+                                <input
+                                  type="checkbox"
+                                  className="form-checkbox h-5 w-5 text-green-500 mr-2"
+                                  checked={!!isCompleted}
+                                  onChange={e => handleVideoCheckbox(moduleIndex, videoIndex, e.target.checked)}
+                                  aria-label={video.title || `Video ${videoIndex + 1}`}
+                                />
                                 <span className="truncate">{video.title || `Video ${videoIndex + 1}`}</span>
                               </div>
                             </button>
@@ -417,6 +525,24 @@ const CoursePlayer = ({ courseId, onBack }) => {
                         })
                       ) : (
                         <div className="text-gray-400 italic text-xs">No videos in this module</div>
+                      )}
+                      {module.quizzes && module.quizzes.length > 0 && (
+                        <button
+                          onClick={() => { setCurrentModule(moduleIndex); setShowQuiz(true); }}
+                          className={`w-full text-left p-2 rounded text-sm ${showQuiz && currentModule === moduleIndex ? 'bg-purple-100 text-purple-800 border-l-4 border-purple-500' : 'text-purple-600 hover:bg-purple-50'}`}
+                        >
+                          <div className="flex items-center">
+                            {/* Interactive checkbox for quiz completion */}
+                            <input
+                              type="checkbox"
+                              className="form-checkbox h-5 w-5 text-purple-500 mr-2"
+                              checked={!!progress[`quiz-${moduleIndex}`]?.completed}
+                              onChange={e => handleQuizCheckbox(moduleIndex, e.target.checked)}
+                              aria-label={`Quiz for module ${moduleIndex + 1}`}
+                            />
+                            <span className="truncate">Quiz</span>
+                          </div>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -457,7 +583,14 @@ const CoursePlayer = ({ courseId, onBack }) => {
                             }`}
                           >
                             <div className="flex items-center">
-                              {isCompleted && <span className="w-2 h-2 bg-green-500 rounded-full mr-2 inline-block" title="Watched" />}
+                              {/* Interactive checkbox for completion */}
+                              <input
+                                type="checkbox"
+                                className="form-checkbox h-5 w-5 text-green-500 mr-2"
+                                checked={!!isCompleted}
+                                onChange={e => handleVideoCheckbox(moduleIndex, videoIndex, e.target.checked)}
+                                aria-label={video.title || `Video ${videoIndex + 1}`}
+                              />
                               <span className="truncate">{video.title || `Video ${videoIndex + 1}`}</span>
                             </div>
                           </button>
@@ -465,6 +598,24 @@ const CoursePlayer = ({ courseId, onBack }) => {
                       })
                     ) : (
                       <div className="text-gray-400 italic text-xs">No videos in this module</div>
+                    )}
+                    {module.quizzes && module.quizzes.length > 0 && (
+                      <button
+                        onClick={() => { setCurrentModule(moduleIndex); setShowQuiz(true); }}
+                        className={`w-full text-left p-2 rounded text-sm ${showQuiz && currentModule === moduleIndex ? 'bg-purple-100 text-purple-800 border-l-4 border-purple-500' : 'text-purple-600 hover:bg-purple-50'}`}
+                      >
+                        <div className="flex items-center">
+                          {/* Interactive checkbox for quiz completion */}
+                          <input
+                            type="checkbox"
+                            className="form-checkbox h-5 w-5 text-purple-500 mr-2"
+                            checked={!!progress[`quiz-${moduleIndex}`]?.completed}
+                            onChange={e => handleQuizCheckbox(moduleIndex, e.target.checked)}
+                            aria-label={`Quiz for module ${moduleIndex + 1}`}
+                          />
+                          <span className="truncate">Quiz</span>
+                        </div>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -483,7 +634,6 @@ const CoursePlayer = ({ courseId, onBack }) => {
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={handleTimeUpdate}
               onEnded={handleVideoEnded}
-              playbackRate={playbackRate}
               controls={false}
               muted={isMuted}
             >
@@ -507,7 +657,6 @@ const CoursePlayer = ({ courseId, onBack }) => {
                   value={playbackRate}
                   onChange={e => {
                     setPlaybackRate(Number(e.target.value));
-                    if (videoRef.current) videoRef.current.playbackRate = Number(e.target.value);
                   }}
                   className="ml-2 px-2 py-1 rounded border text-xs"
                 >
@@ -547,14 +696,32 @@ const CoursePlayer = ({ courseId, onBack }) => {
             </div>
           </div>
 
-          {!showQuiz && videoCompleted && course.modules[currentModule]?.quizzes?.length > 0 && (
-            <div className="flex justify-end mt-2">
-              <button
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
-                onClick={() => setShowQuiz(true)}
-              >
-                Take Quiz
-              </button>
+          {/* Take Quiz or Feedback/Certificate Buttons */}
+          {!showQuiz && course.modules[currentModule]?.quizzes?.length > 0 && (
+            <div className="flex justify-end mt-4">
+              {showFeedbackCertificate && currentModule === course.modules.length - 1 ? (
+                <div className="flex flex-col items-end space-y-2 w-full">
+                  <button
+                    onClick={downloadCertificate}
+                    className="bg-green-600 text-white px-6 py-3 rounded-lg text-lg font-semibold flex items-center hover:bg-green-700 mb-2"
+                  >
+                    <Download className="w-6 h-6 mr-2" /> Download Certificate
+                  </button>
+                  <button
+                    onClick={() => setShowFeedbackModal(true)}
+                    className="bg-yellow-500 text-white px-6 py-3 rounded-lg text-lg font-semibold flex items-center hover:bg-yellow-600"
+                  >
+                    <Star className="w-6 h-6 mr-2" /> Leave Feedback (Optional)
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="bg-purple-600 text-white px-4 py-2 rounded ml-4 hover:bg-purple-700 transition"
+                  onClick={() => setShowQuiz(true)}
+                >
+                  Take Quiz
+                </button>
+              )}
             </div>
           )}
           {showQuiz && course.modules[currentModule]?.quizzes?.length > 0 && (
@@ -563,8 +730,14 @@ const CoursePlayer = ({ courseId, onBack }) => {
               onNext={() => {
                 setShowQuiz(false);
                 setVideoCompleted(false);
-                // handle next module or feedback logic here
+                if (currentModule < course.modules.length - 1) {
+                  setCurrentModule(currentModule + 1);
+                  setCurrentVideo(0);
+                } else {
+                  setShowFeedbackCertificate(true);
+                }
               }}
+              isLastModule={currentModule === course.modules.length - 1}
             />
           )}
 
@@ -696,24 +869,103 @@ const CoursePlayer = ({ courseId, onBack }) => {
       </div>
       {/* Add bottom padding to prevent footer overlap */}
       <div className="h-16" />
-      {courseCompleted && (
-        <div className="flex flex-col items-center justify-center mt-8 mb-8">
-          <button
-            onClick={downloadCertificate}
-            className="bg-green-600 text-white px-6 py-3 rounded-lg text-lg font-semibold flex items-center hover:bg-green-700 mb-4"
-          >
-            <Download className="w-6 h-6 mr-2" /> Download Certificate
-          </button>
-          <button
-            onClick={() => setShowFeedback(true)}
-            className="bg-yellow-500 text-white px-6 py-3 rounded-lg text-lg font-semibold flex items-center hover:bg-yellow-600"
-          >
-            <Star className="w-6 h-6 mr-2" /> Leave Feedback (Optional)
-          </button>
+      {progressWarning && (
+        <div className="text-red-500 text-center">{progressWarning}</div>
+      )}
+      <FeedbackModal
+        open={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        feedback={feedback}
+        setFeedback={setFeedback}
+        submitting={submittingFeedback}
+        onSubmit={async () => {
+          setSubmittingFeedback(true);
+          try {
+            const token = localStorage.getItem('authToken');
+            const response = await fetch(`${API_BASE_URL}/api/courses/feedback`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                courseId,
+                rating: feedback.rating,
+                review: feedback.review
+              })
+            });
+                         if (response.ok) {
+               setFeedbackThankYou(true);
+               // Notify parent component about feedback submission
+               if (onFeedbackSubmitted) {
+                 onFeedbackSubmitted();
+               }
+               setTimeout(() => {
+                 setShowFeedbackModal(false);
+                 setFeedbackThankYou(false);
+                 setFeedback({ rating: 5, review: '' });
+               }, 1800);
+             } else {
+               const data = await response.json();
+               showToast(data.message || 'Failed to submit feedback', 'error');
+             }
+          } catch (err) {
+            showToast('Error submitting feedback', 'error');
+          } finally {
+            setSubmittingFeedback(false);
+          }
+        }}
+      />
+      {feedbackThankYou && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+            <h2 className="text-2xl font-bold mb-2 text-green-600">Thank you for your feedback!</h2>
+            <p className="text-gray-700">We appreciate your input.</p>
+          </div>
         </div>
       )}
     </div>
   );
 };
+
+function FeedbackModal({ open, onClose, onSubmit, feedback, setFeedback, submitting }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
+        <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl">&times;</button>
+        <h2 className="text-2xl font-bold mb-4 text-center">Leave Feedback</h2>
+        <div className="flex items-center justify-center mb-4">
+          {[1,2,3,4,5].map(star => (
+            <button
+              key={star}
+              type="button"
+              className={`text-3xl ${star <= feedback.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+              onClick={() => setFeedback(f => ({ ...f, rating: star }))}
+              aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
+            >
+              ★
+            </button>
+          ))}
+        </div>
+        <textarea
+          className="w-full border rounded-lg p-3 mb-4 min-h-[80px]"
+          placeholder="Share your experience..."
+          value={feedback.review}
+          onChange={e => setFeedback(f => ({ ...f, review: e.target.value }))}
+          minLength={10}
+          maxLength={500}
+        />
+        <button
+          className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
+          onClick={onSubmit}
+          disabled={submitting || feedback.rating < 1 || feedback.review.length < 10}
+        >
+          {submitting ? 'Submitting...' : 'Submit Feedback'}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default CoursePlayer; 
