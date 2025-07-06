@@ -16,6 +16,7 @@ const progressRoutes = require('./routes/progressRoutes');
 const userRoutes = require('./routes/userRoutes');
 const instructorRoutes = require('./routes/instructorRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const certificateRoutes = require('./routes/certificateRoutes');
 
 const app = express();
 connectDB();
@@ -48,6 +49,7 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/instructor', instructorRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/certificate', certificateRoutes);
 
 // Apply streak tracking to all authenticated routes
 app.use('/api/user', updateStreak);

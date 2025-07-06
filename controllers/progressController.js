@@ -11,12 +11,12 @@ exports.markVideoWatched = async (req, res) => {
       return res.status(400).json({ message: 'moduleIndex and videoIndex are required.' });
     }
     const user = await User.findById(userId);
-    const purchased = user.purchasedCourses.find(pc => pc.courseId.toString() === courseId);
-    if (!purchased) return res.status(403).json({ message: 'Course not purchased.' });
-    let moduleProgress = purchased.modulesProgress.find(mp => mp.moduleIndex === moduleIndex);
+    const enrolled = user.enrolledCourses.find(ec => ec.courseId.toString() === courseId);
+    if (!enrolled) return res.status(403).json({ message: 'Course not enrolled.' });
+    let moduleProgress = enrolled.modulesProgress.find(mp => mp.moduleIndex === moduleIndex);
     if (!moduleProgress) {
       moduleProgress = { moduleIndex, videosWatched: [], completed: false };
-      purchased.modulesProgress.push(moduleProgress);
+      enrolled.modulesProgress.push(moduleProgress);
     }
     if (!moduleProgress.videosWatched.includes(videoIndex)) {
       moduleProgress.videosWatched.push(videoIndex);
@@ -45,12 +45,12 @@ exports.markQuizCompleted = async (req, res) => {
       return res.status(400).json({ message: 'moduleIndex and quizIndex are required.' });
     }
     const user = await User.findById(userId);
-    const purchased = user.purchasedCourses.find(pc => pc.courseId.toString() === courseId);
-    if (!purchased) return res.status(403).json({ message: 'Course not purchased.' });
-    let quizProgress = purchased.quizzesProgress.find(qp => qp.moduleIndex === moduleIndex);
+    const enrolled = user.enrolledCourses.find(ec => ec.courseId.toString() === courseId);
+    if (!enrolled) return res.status(403).json({ message: 'Course not enrolled.' });
+    let quizProgress = enrolled.quizzesProgress.find(qp => qp.moduleIndex === moduleIndex);
     if (!quizProgress) {
       quizProgress = { moduleIndex, quizzesCompleted: [] };
-      purchased.quizzesProgress.push(quizProgress);
+      enrolled.quizzesProgress.push(quizProgress);
     }
     if (!quizProgress.quizzesCompleted.includes(quizIndex)) {
       quizProgress.quizzesCompleted.push(quizIndex);
@@ -68,9 +68,9 @@ exports.getCourseProgress = async (req, res) => {
     const userId = req.user._id;
     const { courseId } = req.params;
     const user = await User.findById(userId);
-    const purchased = user.purchasedCourses.find(pc => pc.courseId.toString() === courseId);
-    if (!purchased) return res.status(403).json({ message: 'Course not purchased.' });
-    res.json({ modulesProgress: purchased.modulesProgress, quizzesProgress: purchased.quizzesProgress });
+    const enrolled = user.enrolledCourses.find(ec => ec.courseId.toString() === courseId);
+    if (!enrolled) return res.status(403).json({ message: 'Course not enrolled.' });
+    res.json({ modulesProgress: enrolled.modulesProgress, quizzesProgress: enrolled.quizzesProgress });
   } catch (err) {
     res.status(500).json({ message: 'Error fetching progress', error: err.message });
   }

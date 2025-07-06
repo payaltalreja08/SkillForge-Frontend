@@ -1,6 +1,8 @@
 const Course = require('../models/Course');
 const User = require('../models/User');
 
+const Feedback = require('../models/Feedback');
+
 // Get all courses
 exports.getAllCourses = async (req, res) => {
   try {
@@ -42,10 +44,57 @@ exports.getAllCourses = async (req, res) => {
       .skip((page - 1) * limit)
       .exec();
 
+    // Get feedback data for all courses
+    const courseIds = courses.map(course => course._id);
+    const feedbackData = await Feedback.aggregate([
+      { $match: { courseId: { $in: courseIds } } },
+      { $group: {
+        _id: '$courseId',
+        averageRating: { $avg: '$rating' },
+        totalFeedback: { $sum: 1 },
+        ratingDistribution: {
+          $push: '$rating'
+        }
+      }}
+    ]);
+
+    // Create a map of courseId to feedback data
+    const feedbackMap = {};
+    feedbackData.forEach(feedback => {
+      const ratings = feedback.ratingDistribution;
+      feedbackMap[feedback._id.toString()] = {
+        averageRating: Math.round(feedback.averageRating * 10) / 10,
+        totalFeedback: feedback.totalFeedback,
+        ratingDistribution: {
+          5: ratings.filter(r => r === 5).length,
+          4: ratings.filter(r => r === 4).length,
+          3: ratings.filter(r => r === 3).length,
+          2: ratings.filter(r => r === 2).length,
+          1: ratings.filter(r => r === 1).length
+        }
+      };
+    });
+
+    // Add feedback data to courses
+    const coursesWithFeedback = courses.map(course => {
+      const feedback = feedbackMap[course._id.toString()] || {
+        averageRating: 0,
+        totalFeedback: 0,
+        ratingDistribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+      };
+      
+      return {
+        ...course.toObject(),
+        rating: feedback.averageRating,
+        totalFeedback: feedback.totalFeedback,
+        ratingDistribution: feedback.ratingDistribution
+      };
+    });
+
     const total = await Course.countDocuments(query);
 
     res.status(200).json({
-      courses,
+      courses: coursesWithFeedback,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
       total

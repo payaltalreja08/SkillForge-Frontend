@@ -20,7 +20,26 @@ authType: { type: String, enum: ['local', 'oauth'], default: 'local' },
     progress: { type: Number, default: 0 },
     timeSpent: { type: Number, default: 0 },
     lastAccess: { type: Date, default: Date.now },
-    completed: { type: Boolean, default: false }
+    completed: { type: Boolean, default: false },
+    modulesProgress: {
+      type: [
+        {
+          moduleIndex: Number,
+          videosWatched: [Number],
+          completed: { type: Boolean, default: false }
+        }
+      ],
+      default: []
+    },
+    quizzesProgress: {
+      type: [
+        {
+          moduleIndex: Number,
+          quizzesCompleted: [Number]
+        }
+      ],
+      default: []
+    }
   }],
   totalStreak: { type: Number, default: 0 },
   certificates: [{ type: String }],
@@ -31,26 +50,7 @@ authType: { type: String, enum: ['local', 'oauth'], default: 'local' },
   totalRevenue: { type: Number, default: 0 },
   avgRating: { type: Number, default: 0 },
 
-  purchasedCourses: [{
-    courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
-    purchasedDate: { type: Date, default: Date.now },
-    modulesProgress: [{
-      moduleIndex: Number,
-      videosWatched: [Number], // indexes of watched videos in the module
-      completed: { type: Boolean, default: false }
-    }],
-    quizzesProgress: [{
-      moduleIndex: Number,
-      quizzesCompleted: [Number] // indexes of completed quizzes in the module
-    }],
-    feedback: {
-      submitted: { type: Boolean, default: false },
-      content: { type: String, default: '' }
-    },
-    certificateUrl: { type: String, default: '' },
-    completed: { type: Boolean, default: false },
-    lastAccess: { type: Date, default: Date.now }
-  }]
+  // Remove purchasedCourses array from schema
 
 }, { timestamps: true });
 

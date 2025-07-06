@@ -20,7 +20,7 @@ exports.submitFeedback = async (req, res) => {
     
     // Check if user has purchased the course
     const user = await User.findById(req.user._id);
-    if (!user.purchasedCourses.includes(courseId)) {
+    if (!user.enrolledCourses.some(ec => ec.courseId.toString() === courseId)) {
       return res.status(403).json({ message: 'You must purchase the course before providing feedback.' });
     }
     

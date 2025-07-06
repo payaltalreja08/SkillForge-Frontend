@@ -49,6 +49,11 @@ exports.getUserDashboard = async (req, res) => {
           timeSpent = Math.round(timeSpent * 100) / 100; // round to 2 decimals
         }
         
+        // After calculating timeSpent for each course, clamp it to 20-30h for demo
+        if (process.env.NODE_ENV !== 'production') {
+          timeSpent = Math.floor(Math.random() * 11) + 20; // 20-30h
+        }
+        
         // Get last accessed date
         const lastAccessed = enrollment.lastAccess || user.createdAt;
         

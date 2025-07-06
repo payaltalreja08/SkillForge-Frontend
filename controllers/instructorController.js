@@ -41,6 +41,12 @@ exports.getInstructorDashboard = async (req, res) => {
           .sort({ createdAt: -1 })
           .limit(5);
         
+        // Recent feedback
+        const recentFeedback = await Feedback.find({ courseId: course._id })
+          .populate('userId', 'name profileImage')
+          .sort({ createdAt: -1 })
+          .limit(5);
+        
         return {
           _id: course._id,
           name: course.name,
@@ -57,6 +63,16 @@ exports.getInstructorDashboard = async (req, res) => {
             user: {
               name: comment.userId.name,
               profileImage: comment.userId.profileImage
+            }
+          })),
+          recentFeedback: recentFeedback.map(feedback => ({
+            _id: feedback._id,
+            rating: feedback.rating,
+            review: feedback.review,
+            createdAt: feedback.createdAt,
+            user: {
+              name: feedback.userId.name,
+              profileImage: feedback.userId.profileImage
             }
           }))
         };
