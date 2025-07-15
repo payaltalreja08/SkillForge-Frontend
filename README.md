@@ -1,12 +1,54 @@
-# React + Vite
+# SkillForge Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+![Project Screenshot](./screenshot-frontend.png)
 
-Currently, two official plugins are available:
+## About the Project
+SkillForge Frontend is the client-side application for the SkillForge e-learning platform. Built with React and Vite, it provides a modern, responsive user interface for students and instructors to interact with courses, track progress, and access AI-powered features.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
+- User registration and login (JWT-based)
+- Google OAuth authentication
+- Browse, enroll, and manage courses
+- Instructor dashboard and course management
+- Progress tracking and streaks
+- AI-powered features (Gemini API)
+- Responsive design with Tailwind CSS
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Prerequisites
+- Node.js (v16+ recommended)
+- Backend API running (see backend setup)
+
+### Installation
+1. Clone the repository:
+   ```sh
+   git clone <your-frontend-repo-url>
+   cd SkillForge-Frontend
+   ```
+2. Install dependencies:
+   ```sh
+   npm install
+   ```
+3. Create a `.env` file in the root of `SkillForge-Frontend` with the following variables:
+   ```env
+   VITE_API_BASE_URL=http://localhost:5000
+   VITE_GOOGLE_CLIENT_ID=your_google_client_id
+   VITE_GEMINI_API_KEY=your_gemini_api_key
+   ```
+4. Start the development server:
+   ```sh
+   npm run dev
+   ```
+
+## Project Structure
+- `src/components/` - React components
+- `src/pages/` - Page-level components
+- `src/utils/` - Utility functions
+
+
+
+---
+
+## License
+MIT
