@@ -125,7 +125,7 @@ const App = () => {
     const token = urlParams.get('token');
     if (token) {
       localStorage.setItem('authToken', token);
-      // Fetch user data and store in localStorage
+      
       fetch('http://localhost:5000/api/user/dashboard', {
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -144,7 +144,7 @@ const App = () => {
     }
   }, []);
 
-  // Fetch courses from backend
+ 
   useEffect(() => {
     const fetchCourses = async () => {
       try {
@@ -169,7 +169,7 @@ const App = () => {
     fetchCourses();
   }, []);
 
-  // Fetch specific course by ID
+  
   const fetchCourseById = async (courseId) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/courses/${courseId}`);
@@ -192,7 +192,7 @@ const App = () => {
     }
   };
 
-  // Form validation
+  
   const validateForm = () => {
     const errors = {};
     

@@ -227,8 +227,7 @@ const CourseForm = ({ course, onSubmit, onCancel, isEditing = false }) => {
           )
         ));
         await onSubmit(fd);
-        // Show success notification
-        showToast('Course updated successfully!', 'success');
+        showToast('Course uploaded successfully!', 'success');
       } else {
         // Use JSON for data without files
         const courseData = {
@@ -248,9 +247,11 @@ const CourseForm = ({ course, onSubmit, onCancel, isEditing = false }) => {
           })
         };
         await onSubmit(courseData);
+        showToast('Course uploaded successfully!', 'success');
       }
     } catch (error) {
       console.error('Error submitting form:', error);
+      showToast('Failed to upload course. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);
     }
